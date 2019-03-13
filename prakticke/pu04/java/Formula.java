@@ -1,9 +1,11 @@
+import java.util.Map;
+import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.Arrays;
 
 public interface Formula {
     public Formula[] subf();
@@ -12,6 +14,16 @@ public interface Formula {
     public Set<String> vars();
 
     public Cnf toCnf();
+    public CnfRet cejtin();
+}
+
+class CnfRet {
+    public String name;
+    public Cnf cnf;
+    CnfRet(String name, Cnf cnf) {
+        this.name = name;
+        this.cnf = cnf;
+    }
 }
 
 class Variable implements Formula {
@@ -56,7 +68,12 @@ class Variable implements Formula {
 
     public Cnf toCnf() {
         /* TODO Implement this! */
-        return new Cnf();
+//        return new Cnf();
+        return new Cnf(new Clause(new Literal(name())));
+    }
+
+    public CnfRet cejtin() {
+        return new CnfRet(name(), new Cnf());
     }
 }
 
@@ -98,6 +115,23 @@ class CompositeFormula implements Formula {
     public Cnf toCnf() {
         return new Cnf();
     }
+
+    public Cnf cejtinEquiv(Literal me, List<Literal> vars) {
+        return new Cnf();
+    }
+
+    public CnfRet cejtin() {
+        Cnf out = new Cnf();
+        List<Literal> vars = new ArrayList<Literal>();
+        for (Formula sf : subf()) {
+            CnfRet ret = sf.cejtin();
+            vars.add(new Literal(ret.name));
+            out.addAll(ret.cnf);
+        }
+        Literal me = new Literal(Variable.newName());
+        out.addAll(cejtinEquiv(me, vars));
+        return new CnfRet(me.name(), out);
+    }
 }
 
 class Negation extends CompositeFormula {
@@ -112,6 +146,13 @@ class Negation extends CompositeFormula {
     @Override
     public String toString() {
         return "-" + originalFormula().toString();
+    }
+
+    public Cnf cejtinEquiv(Literal me, List<Literal> vars) {
+        return new Cnf(
+            new Clause(me, vars.get(0)),
+            new Clause(Literal.Not(me), Literal.Not(vars.get(0)))
+        );
     }
 }
 
@@ -142,6 +183,12 @@ class BinaryFormula extends CompositeFormula {
 class Implication extends BinaryFormula {
     public Implication(Formula a, Formula b) {
         super(a, b, "->");
+    }
+    public Cnf cejtinEquiv(Literal me, List<Literal> vars) {
+        return new Cnf(
+            new Clause(me, vars.get(0)),
+            new Clause(Literal.Not(me), Literal.Not(vars.get(0)))
+        );
     }
 }
 
